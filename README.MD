@@ -1,7 +1,7 @@
 Yourls-PHP-Simpleclass
 =========================
 
-This class was designed to shorten links in a minimum number of commands.
+This class is designed to shorten links in a minimum number of commands for (YOURLS)[https://yourls.org].
 
 
 # Usage for unique link
