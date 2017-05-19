@@ -25,15 +25,19 @@ class yourls {
 	private $delay = 100000;
 
 	private $server = NULL;
+	private $signature = NULL;
 	private $username = NULL;
 	private $password = NULL;
 	public $content = "";
 	public $link = "";
+	public $stats = null;
+	public $data = null;
+	public $data_debug = null;
 
 	/**
 	 * @params: server (string), username (string), password (string)
 	 */
-	public function __construct($server, $username, $password) {
+	public function __construct($server, $signature, $username = null, $password = null) {
 		if(!function_exists('json_decode')) {
 			die("PECL json required.");
 		}
@@ -42,9 +46,61 @@ class yourls {
 		}
 
 		$this->server = $server;
-		$this->username = $username;
-		$this->password = $password;
+		$this->signature = $signature;
+		//$this->username = $username;
+		//$this->password = $password;
 
+	}
+
+	/**
+	 * CURL Connection
+	 * @params: url (string)
+	 * @return: url shortening (string)
+	 */
+	public function connect($action,$inputUrl = null) {
+		$buffer = curl_init();
+		curl_setopt($buffer, CURLOPT_URL, $this->server);
+		curl_setopt($buffer, CURLOPT_CONNECTTIMEOUT, $this->connectionTimeout);
+		curl_setopt($buffer, CURLOPT_TIMEOUT, $this->timeout);
+		curl_setopt($buffer, CURLOPT_HEADER, 0);
+		curl_setopt($buffer, CURLOPT_RETURNTRANSFER, 1);
+		curl_setopt($buffer, CURLOPT_POST, 1);
+		// TODO switching here
+		switch ($action) {
+			case 'value':
+				$roptions = array(
+					'shorturl' => $inputUrl, 
+					'signature' => $this->signature,
+					//'username' => $this->username,
+					//'password' => $this->password, 
+					'format' => 'json', 
+					'action' => $action
+					);
+				break;
+			
+			default:
+				$roptions = array('url' => $inputUrl,
+					'shorturl' => $inputUrl, 
+					'signature' => $this->signature,
+					//'username' => $this->username,
+					//'password' => $this->password, 
+					'format' => 'json', 
+					'action' => $action
+					);
+							break;
+		}
+		curl_setopt($buffer, CURLOPT_POSTFIELDS, $roptions);
+
+		$data = curl_exec($buffer);
+		curl_close($buffer);
+
+		$data = json_decode($data);
+		$this->data_debug = $data;
+		$this->data = $data->link;
+		//die(var_dump($inputUrl));
+
+		$this->verify($data);
+		return $data;
 	}
 
 	/**
@@ -73,28 +129,36 @@ class yourls {
 	 * @return: url shortening (string)
 	 */
 	public function link($inputUrl) {
-		$buffer = curl_init();
-		curl_setopt($buffer, CURLOPT_URL, $this->server);
-		curl_setopt($buffer, CURLOPT_CONNECTTIMEOUT, $this->connectionTimeout);
-		curl_setopt($buffer, CURLOPT_TIMEOUT, $this->timeout);
-		curl_setopt($buffer, CURLOPT_HEADER, 0);
-		curl_setopt($buffer, CURLOPT_RETURNTRANSFER, 1);
-		curl_setopt($buffer, CURLOPT_POST, 1);
-		curl_setopt($buffer, CURLOPT_POSTFIELDS, array('url' => $inputUrl, 
-		'username' => $this->username, 
-		'password' => $this->password, 
-		'format' => 'json', 
-		'action' => 'shorturl'
-		));
-
-		$data = curl_exec($buffer);
-		curl_close($buffer);
-
-		$data = json_decode($data);
-
-		$this->verify($data);
+		$data = $this->connect('shorturl',$inputUrl);
+		//die(var_dump($data));
 		$this->link = $data->shorturl;
 		return $this->link;
+	}
+
+
+	/**
+	 * DB-stats by link
+	 * @params: url (string)
+	 * @return: url shortening (string)
+	 */
+	public function link_stats($shortUrl) {
+		$data = $this->connect('url-stats',$shortUrl);
+		//die(var_dump($data));
+		$this->stats = $data->{'url-stats'};
+		return $this->stats;
+	}
+
+
+	/**
+	 * DB-stats by link
+	 * @params: url (string)
+	 * @return: url shortening (string)
+	 */
+	public function stats($inputUrl) {
+		$data = $this->connect('db-stats');
+		//die(var_dump($data));
+		$this->stats = $data->{'db-stats'};
+		return $this->stats;
 	}
 
 	/**
