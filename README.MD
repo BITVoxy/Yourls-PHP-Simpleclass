@@ -8,7 +8,7 @@ This class is designed to shorten links in a minimum number of commands for [YOU
 ```
 <?php
 require_once('class.yourls.php');
-$yourls = new yourls("http://YOUR_YOURLS_URI/yourls-api.php", "login", "password");
+$yourls = new yourls("http://YOUR_YOURLS_URI/yourls-api.php", "signature");
 $yourls->link("http://www.google.com/"); 
 echo $yourls->link;
 ?>
@@ -18,7 +18,7 @@ echo $yourls->link;
 ```
 <?php
 require_once('class.yourls.php');
-$yourls = new yourls("http://YOUR_YOURLS_URI/yourls-api.php", "login", "password");
+$yourls = new yourls("http://YOUR_YOURLS_URI/yourls-api.php", "signature");
 $yourls->content("Hello World! http://www.google.com/ http://www.yahoo.com/"); 
 echo $yourls->content;
 ?>
