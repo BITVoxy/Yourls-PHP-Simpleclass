@@ -3,7 +3,6 @@ Yourls-PHP-Simpleclass
 
 This class is designed to shorten links in a minimum number of commands for [YOURLS](https://yourls.org).
 
-
 # Usage for unique link
 ```
 <?php
@@ -23,3 +22,7 @@ $yourls->content("Hello World! http://www.google.com/ http://www.yahoo.com/");
 echo $yourls->content;
 ?>
 ```
+
+# Reference links
+[YOURLS Admin Tools - API Signature - https://YOUR_DOMAIN/admin/tools.php](https://YOUR_DOMAIN/admin/tools.php)
+[YOURLS API Guide](https://yourls.org/readme.html#API)
