@@ -33,11 +33,12 @@ class yourls {
 	public $stats = null;
 	public $data = null;
 	public $data_debug = null;
+	public $limit = 5;
 
 	/**
 	 * @params: server (string), username (string), password (string)
 	 */
-	public function __construct($server, $signature, $username = null, $password = null) {
+	public function __construct($server, $signature = null, $username = null, $password = null) {
 		if(!function_exists('json_decode')) {
 			die("PECL json required.");
 		}
@@ -57,7 +58,9 @@ class yourls {
 	 * @params: url (string)
 	 * @return: url shortening (string)
 	 */
-	public function connect($action,$inputUrl = null) {
+	public function connect($action,$arg = []) {
+		$inputUrl = $arg['input_url'];
+		//$arg['limit'] = $this->limit;
 		$buffer = curl_init();
 		curl_setopt($buffer, CURLOPT_URL, $this->server);
 		curl_setopt($buffer, CURLOPT_CONNECTTIMEOUT, $this->connectionTimeout);
@@ -66,41 +69,137 @@ class yourls {
 		curl_setopt($buffer, CURLOPT_RETURNTRANSFER, 1);
 		curl_setopt($buffer, CURLOPT_POST, 1);
 		// TODO switching here
-		switch ($action) {
-			case 'value':
-				$roptions = array(
-					'shorturl' => $inputUrl, 
+			// constant
+		$opt2 = array(
 					'signature' => $this->signature,
 					//'username' => $this->username,
 					//'password' => $this->password, 
-					'format' => 'json', 
-					'action' => $action
+					'format' => 'json'					
 					);
+		switch ($action) {
+			case 'shorturl':
+				$opt1 = array('url' => $inputUrl , 'keyword' => $arg['keyword'] , 'title' => $arg['title'],'action' => $action );
+				break;
+
+			case 'expand':
+				$opt1 = array('shorturl' => $inputUrl, 'action' => $action);
+				break;
+
+			case 'url_stats':
+				$opt1 = array('shorturl' => $inputUrl, 'action' => 'url-stats');
+				break;
+
+			case 'stats':
+				$opt1 = array('shorturl' => $inputUrl,'filter' => $arg['filter']  , 'limit' => $arg['limit'], 'action' => $action);
+				break;
+
+			case 'db_stats':
+				$opt1 = ['action' => 'db-stats'];
 				break;
 			
 			default:
-				$roptions = array('url' => $inputUrl,
-					'shorturl' => $inputUrl, 
-					'signature' => $this->signature,
-					//'username' => $this->username,
-					//'password' => $this->password, 
-					'format' => 'json', 
-					'action' => $action
-					);
-							break;
+				$opt1 = array('url' => $inputUrl, 'action' => $action);
+				break;
 		}
+		$roptions = array_merge($opt1, $opt2);
+		//die(var_dump($roptions));
 		curl_setopt($buffer, CURLOPT_POSTFIELDS, $roptions);
 
 		$data = curl_exec($buffer);
 		curl_close($buffer);
 
 		$data = json_decode($data);
+		//die(var_dump($data));
 		$this->data_debug = $data;
-		$this->data = $data->link;
+
+		if ($data->link) {
+				$this->data = $data->link;
+		} else {
+			$this->data = $data;
+		}
+
 		//die(var_dump($inputUrl));
 
 		$this->verify($data);
 		return $data;
+	}
+
+	/**
+	 * Shortener by link
+	 * @params: url (string)
+	 * @return: url shortening (string)
+	 */
+	public function link($inputUrl,$inputKeyword = null,$inputTitle = null) {
+		
+		if (!empty($inputKeyword) XOR !empty($inputTitle)) {
+			$arg = array('input_url' => $inputUrl, 'keyword' => $inputUrl , 'title' => $inputTitle);
+		} else {
+			$arg = array('input_url' => $inputUrl);
+		}
+		$data = $this->connect('shorturl',$arg);
+		//die(var_dump($data));
+		$this->link = $data->shorturl;
+		return $this->link;
+	}
+
+
+	/**
+	 * expand url by link
+	 * @params: url (string)
+	 * @return: url shortening (string)
+	 */
+	public function expand($shortUrl) {
+		$data = $this->connect('expand' , array( 'input_url' => $shortUrl ) );
+		//die(var_dump($data));
+		//$this->stats = $data;
+		return $data->longurl;
+	}
+
+
+	/**
+	 * stats for 1 link
+	 * @params: url (string)
+	 * @return: url shortening (string)
+	 */
+	public function link_stats($shortUrl) {
+		$data = $this->connect('url_stats', array( 'input_url' => $shortUrl ) );
+		//die(var_dump($data));
+		$this->stats = $data->link;
+		return $this->data;
+	}
+
+
+	/**
+	 * all the db stats
+	 * @params: url (string)
+	 * @return: url shortening (string)
+	 */
+	public function stats_log($inputUrl, $filter = null, $limit = null) {
+
+		if (empty($filter) XOR empty($limit)) {
+			$arg = array('input_url' => $inputUrl);
+		} else {
+			$arg = array('input_url' => $inputUrl, 'filter' => $filter, 'limit' => $limit );
+		}
+		$data = $this->connect('stats',$arg);
+		//die(var_dump($data));
+		$this->stats = $data->stats;
+		// filter
+		// limit
+		return $this->stats;
+	}
+
+
+	/**
+	 * DB-stats
+	 * @params: url (string)
+	 * @return: url shortening (string)
+	 */
+	public function dbstats() {
+		$data = $this->connect('db_stats');
+		//die(var_dump($data));
+		$this->stats = $data->{'db-stats'};
+		return $this->stats;
 	}
 
 	/**
@@ -121,44 +220,6 @@ class yourls {
 
 		$this->content = $data;
 		return $this->content;
-	}
-
-	/**
-	 * Shortener by link
-	 * @params: url (string)
-	 * @return: url shortening (string)
-	 */
-	public function link($inputUrl) {
-		$data = $this->connect('shorturl',$inputUrl);
-		//die(var_dump($data));
-		$this->link = $data->shorturl;
-		return $this->link;
-	}
-
-
-	/**
-	 * DB-stats by link
-	 * @params: url (string)
-	 * @return: url shortening (string)
-	 */
-	public function link_stats($shortUrl) {
-		$data = $this->connect('url-stats',$shortUrl);
-		//die(var_dump($data));
-		$this->stats = $data->{'url-stats'};
-		return $this->stats;
-	}
-
-
-	/**
-	 * DB-stats by link
-	 * @params: url (string)
-	 * @return: url shortening (string)
-	 */
-	public function stats($inputUrl) {
-		$data = $this->connect('db-stats');
-		//die(var_dump($data));
-		$this->stats = $data->{'db-stats'};
-		return $this->stats;
 	}
 
 	/**
